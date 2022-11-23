@@ -20,6 +20,53 @@ variable "local_domain" {
   type        = string
 }
 
+variable "db_storage" {
+  description = "Storage pool for database"
+  type        = number
+  default     = 100
+}
+
+variable "db_backup_retention_period" {
+  description = "Retention period for backups"
+  type        = number
+  default     = 7
+}
+
+variable "db_backup_window" {
+  description = "When should backups occur"
+  type        = string
+  default     = "00:00-00:30"
+}
+
+variable "db_name" {
+  description = "Name of database"
+  type        = string
+  default     = "mastodon_production"
+}
+
+variable "db_maintenance_window" {
+  description = "When should maintenance occur"
+  type        = string
+  default     = "Sun:01:00-Sun:01:30"
+}
+
+variable "db_instance_class" {
+  description = "Name of database"
+  type        = string
+  default     = "db.t4g.micro'"
+}
+
+variable "db_username" {
+  description = "Username of the database account"
+  type        = string
+  default     = "mastodon"
+}
+
+variable "db_password" {
+  description = "Password of the database account"
+  type        = string
+}
+
 
 # variable "app_port" {
 #   description = "Container application port"
