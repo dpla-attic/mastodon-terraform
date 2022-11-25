@@ -1,0 +1,4 @@
+region            = "" # something like us-east-1
+local_domain      = "" # the domain name you registered for your server
+smtp_from_address = "" # the email address you want server messages to come from
+db_password       = "" # the password for the database user. try using pwgen 30 1
