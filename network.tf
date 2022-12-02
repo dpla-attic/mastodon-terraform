@@ -1,6 +1,10 @@
 resource "aws_default_vpc" "vpc" {
 }
 
+data "aws_region" "current" {
+
+}
+
 data "aws_availability_zones" "available" {
   state = "available"
 }
@@ -28,7 +32,7 @@ resource "aws_db_subnet_group" "default" {
 }
 
 resource "aws_elasticache_subnet_group" "default" {
-  name       = "main-subnet-group"
+  name = "main-subnet-group"
   subnet_ids = [
     aws_default_subnet.subnet_a.id,
     aws_default_subnet.subnet_b.id,

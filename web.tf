@@ -22,7 +22,7 @@ resource "aws_security_group_rule" "web_inbound_postgres" {
   source_security_group_id = aws_security_group.mastodon_web_sg.id
 }
 
-resource "aws_security_group_rule" "web_inbound_alb" {
+resource "aws_security_group_rule" "alb_outbound_web" {
   type                     = "ingress"
   from_port                = 3000
   to_port                  = 3000
@@ -73,139 +73,93 @@ resource "aws_lb_listener_rule" "forward_to_tg" {
 
   condition {
     host_header {
-      values = [ var.local_domain ]
+      values = [var.local_domain]
     }
   }
 }
 
-resource "aws_ecs_cluster" "fargate_cluster" {
-  name = "mastodon-cluster"
+locals {
+  redis = aws_elasticache_replication_group.mastodon-redis-cluster
+  db    = aws_rds_cluster.mastodon_db
 }
 
+#"rails", "s", "-p", "3000"]
+resource "aws_ecs_task_definition" "web_task_definition" {
+  family = "mastodon-web"
+  container_definitions = templatefile(
+    "web-task-def.json.tpl",
+    {
+      local_domain             = var.local_domain
+      redis_host               = local.redis.configuration_endpoint_address
+      redis_port               = local.redis.port
+      db_host                  = local.db.endpoint
+      db_user                  = local.db.master_username
+      db_name                  = local.db.database_name
+      db_pass                  = local.db.master_password
+      db_port                  = local.db.port
+      es_enabled               = false
+      es_host                  = ""
+      es_port                  = ""
+      es_user                  = ""
+      es_pass                  = ""
+      secret_key_base          = var.secret_key_base
+      otp_secret               = var.otp_secret
+      vapid_private_key        = var.vapid_private_key
+      vapid_public_key         = var.vapid_public_key
+      smtp_port                = 587
+      smtp_server              = "email-smtp.${data.aws_region.current.name}.amazonaws.com"
+      smtp_login               = aws_iam_access_key.ses_smtp_user_access_key.id
+      smtp_password            = aws_iam_access_key.ses_smtp_user_access_key.ses_smtp_password_v4
+      smtp_from_address        = "admin@${var.local_domain}"
+      s3_enabled               = false
+      s3_bucket                = ""
+      s3_alias_host            = ""
+      ip_retention_period      = var.ip_retention_period
+      session_retention_period = var.session_retention_period
+      mastodon_version         = var.mastodon_version
+      web_memory               = var.web_memory
+      web_cpu                  = var.web_cpu
+      aws_region               = data.aws_region.current.name
+      log_group_name           = aws_cloudwatch_log_group.mastodon_log_group.name
+  })
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_execution_role.arn
+  cpu                      = var.web_cpu
+  memory                   = var.web_memory
+}
 
-resource "aws_ecs_cluster_capacity_providers" "web_capacity_provider" {
-  cluster_name       = aws_ecs_cluster.fargate_cluster.name
-  capacity_providers = ["FARGATE"]
+resource "aws_ecs_service" "fargate_service" {
+  name                               = "mastodon-web"
+  cluster                            = aws_ecs_cluster.fargate_cluster.id
+  task_definition                    = aws_ecs_task_definition.web_task_definition.arn
+  desired_count                      = 2
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 50
+  force_new_deployment               = true
+  launch_type                        = "FARGATE"
+  health_check_grace_period_seconds  = 60
 
-  default_capacity_provider_strategy {
-    base              = 1
-    weight            = 100
-    capacity_provider = "FARGATE"
+  network_configuration {
+    subnets = [
+      aws_default_subnet.subnet_a.id,
+      aws_default_subnet.subnet_b.id,
+      aws_default_subnet.subnet_c.id
+    ]
+    assign_public_ip = true
+    security_groups = [
+      aws_security_group.mastodon_web_sg.id
+    ]
   }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.web_tg.arn
+    container_name   = "mastodon-web"
+    container_port   = 3000
+  }
+
+  depends_on = [
+    aws_lb_listener.https
+  ]
 }
-
-# resource "aws_ecs_task_definition" "task_definition" {
-#   family                   = local.project_prefix
-#   container_definitions    = local.container_def
-#   network_mode             = "awsvpc"
-#   requires_compatibilities = ["FARGATE"]
-#   execution_role_arn       = data.terraform_remote_state.ecs_security.outputs.ecs_task_execution_role.arn
-#   task_role_arn            = data.terraform_remote_state.ecs_security.outputs.ecs_tasks_execution_role.arn
-#   cpu                      = local.fargate_task_cpu
-#   memory                   = local.fargate_task_memory
-
-#   tags = merge(
-#     local.common_tags, {
-#       "Name" = "${local.project_prefix}-task_definition"
-#   })
-# }
-
-# resource "aws_ecs_service" "fargate_service" {
-#   name                               = local.project_prefix
-#   cluster                            = aws_ecs_cluster.fargate_cluster.id
-#   task_definition                    = aws_ecs_task_definition.task_definition.arn
-#   desired_count                      = 2
-#   deployment_maximum_percent         = 200
-#   deployment_minimum_healthy_percent = 50
-#   force_new_deployment               = true
-#   launch_type                        = "FARGATE"
-#   health_check_grace_period_seconds  = 60
-
-#   # ##################################################
-#   # TOGGLE THIS FOR CHANGES OUTSIDE OF CODE DEPLOY
-#   # 
-#   # FIXME --  this should be conditional on an 
-#   #           env variable 
-#   # ##################################################
-#   deployment_controller {
-#     type = "CODE_DEPLOY"
-#   }
-
-#   network_configuration {
-#     subnets          = [local.subnet_a.id, local.subnet_b.id, local.subnet_c.id]
-#     assign_public_ip = true
-#     security_groups  = [aws_security_group.service_sg.id]
-#   }
-
-#   load_balancer {
-#     target_group_arn = aws_lb_target_group.this.0.arn
-#     container_name   = "${local.project_prefix}-container"
-#     container_port   = local.app_port
-#   }
-
-#   depends_on = [
-#     local.https_listener
-#   ]
-# }
-
-
-
-
-# # module "ecs" { #todo
-# #   source = "../../modules/services/ecs"
-
-# #   app_port            = local.app_port
-# #   bucket              = var.bucket
-# #   dynamodb_table      = var.dynamodb_table
-# #   ecr_repo_name       = local.ecr_repo_name
-# #   fargate_task_memory = local.fargate_task_memory
-# #   fargate_task_cpu    = local.fargate_task_cpu
-# #   github_repo         = "dpla/api"
-# #   health_check_path   = "/health-check"
-# #   host_header         = local.host_header
-# #   project_name        = local.project_name
-# #   project_prefix      = local.project_prefix
-# #   region              = var.region
-
-# #   container_def = templatefile(
-# #     "fargate-task-def.json.tpl",
-# #     {
-# #       ecr_repo                 = "283408157088.dkr.ecr.us-east-1.amazonaws.com/${local.ecr_repo_name}"
-# #       ecr_tag                  = local.ecr_tag
-# #       app_port                 = local.app_port
-# #       aws_region               = local.region
-# #       project_name             = local.project_prefix
-# #       log_group_name           = "/ecs/${local.project_prefix}"
-# #       fargate_container_cpu    = local.fargate_container_cpu
-# #       fargate_container_memory = local.fargate_container_memory
-
-# #       # Mastodon specific ENV variables for task definition
-# #       local_domain             = var.local_domain
-# #       redis_host               = var.redis_host
-# #       redis_port               = var.redis_port
-# #       db_host                  = var.db_host
-# #       db_user                  = var.db_user
-# #       db_name                  = var.db_name
-# #       db_pass                  = var.db_pass
-# #       db_port                  = var.db_port
-# #       es_enabled               = var.es_enabled
-# #       es_host                  = var.es_host
-# #       es_port                  = var.es_port
-# #       es_user                  = var.es_user
-# #       es_pass                  = var.es_pass
-# #       secret_key_base          = var.secret_key_base
-# #       otp_secret               = var.otp_secret
-# #       vapid_private_key        = var.vapid_private_key
-# #       vapid_public_key         = var.vapid_public_key
-# #       smtp_server              = var.smtp_server
-# #       smtp_port                = var.smtp_port
-# #       smtp_login               = var.smtp_login
-# #       smtp_password            = var.smtp_password
-# #       smtp_from_address        = var.smtp_from_address
-# #       s3_enabled               = var.s3_enabled
-# #       s3_bucket                = var.s3_bucket
-# #       s3_alias_host            = var.s3_alias_host
-# #       ip_retention_period      = var.ip_retention_period
-# #       session_retention_period = var.session_retention_period
-# #   })
-# # }

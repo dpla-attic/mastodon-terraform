@@ -9,7 +9,7 @@ resource "aws_elasticache_replication_group" "mastodon-redis-cluster" {
   automatic_failover_enabled = true
   auto_minor_version_upgrade = true
 
-  num_node_groups         = 2
+  num_node_groups         = 1
   replicas_per_node_group = 1
 
   maintenance_window       = "sun:00:00-sun:02:00"
