@@ -7,7 +7,7 @@ resource "aws_rds_cluster" "mastodon_db" {
   master_username                 = var.db_username
   master_password                 = var.db_password
   port                            = 5432
-  final_snapshot_identifier       = "mastodon-db-${timestamp()}"
+  final_snapshot_identifier       = "mastodon-db-final"
   backup_retention_period         = var.db_backup_retention_period
   preferred_backup_window         = var.db_backup_window
   preferred_maintenance_window    = var.db_maintenance_window
