@@ -1,5 +1,5 @@
 locals {
-  route53_zone_id = aws_route53_zone.site_dns_zone.zone_id
+  route53_zone_id = data.aws_route53_zone.site_dns_zone.zone_id
 }
 
 resource "aws_ses_domain_identity" "ses_domain" {
