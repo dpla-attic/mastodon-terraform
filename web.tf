@@ -83,7 +83,6 @@ locals {
   db    = aws_rds_cluster.mastodon_db
 }
 
-#"rails", "s", "-p", "3000"]
 resource "aws_ecs_task_definition" "web_task_definition" {
   family = "mastodon-web"
   container_definitions = templatefile(
