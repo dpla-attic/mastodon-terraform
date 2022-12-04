@@ -21,4 +21,3 @@ resource "aws_security_group_rule" "sidekiq_inbound_postgres" {
   security_group_id        = aws_security_group.mastodon_db_sg.id
   source_security_group_id = aws_security_group.mastodon_sidekiq_sg.id
 }
-

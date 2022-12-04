@@ -78,48 +78,17 @@ resource "aws_lb_listener_rule" "forward_to_tg" {
   }
 }
 
-locals {
-  redis = aws_elasticache_replication_group.mastodon-redis-cluster
-  db    = aws_rds_cluster.mastodon_db
-}
-
 resource "aws_ecs_task_definition" "web_task_definition" {
   family = "mastodon-web"
   container_definitions = templatefile(
-    "web-task-def.json.tpl",
+    "templates/web-task-def.json.tftpl",
     {
-      local_domain             = var.local_domain
-      redis_host               = local.redis.configuration_endpoint_address
-      redis_port               = local.redis.port
-      db_host                  = local.db.endpoint
-      db_user                  = local.db.master_username
-      db_name                  = local.db.database_name
-      db_pass                  = local.db.master_password
-      db_port                  = local.db.port
-      es_enabled               = false
-      es_host                  = ""
-      es_port                  = ""
-      es_user                  = ""
-      es_pass                  = ""
-      secret_key_base          = var.secret_key_base
-      otp_secret               = var.otp_secret
-      vapid_private_key        = var.vapid_private_key
-      vapid_public_key         = var.vapid_public_key
-      smtp_port                = 587
-      smtp_server              = "email-smtp.${data.aws_region.current.name}.amazonaws.com"
-      smtp_login               = aws_iam_access_key.ses_smtp_user_access_key.id
-      smtp_password            = aws_iam_access_key.ses_smtp_user_access_key.ses_smtp_password_v4
-      smtp_from_address        = "admin@${var.local_domain}"
-      s3_enabled               = false
-      s3_bucket                = ""
-      s3_alias_host            = ""
-      ip_retention_period      = var.ip_retention_period
-      session_retention_period = var.session_retention_period
-      mastodon_version         = var.mastodon_version
-      web_memory               = var.web_memory
-      web_cpu                  = var.web_cpu
-      aws_region               = data.aws_region.current.name
-      log_group_name           = aws_cloudwatch_log_group.mastodon_log_group.name
+      environment      = local.mastodon_environment_vars
+      mastodon_version = var.mastodon_version
+      web_memory       = var.web_memory
+      web_cpu          = var.web_cpu
+      aws_region       = data.aws_region.current.name
+      log_group_name   = aws_cloudwatch_log_group.mastodon_log_group.name
   })
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
