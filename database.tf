@@ -1,3 +1,9 @@
+resource "aws_db_subnet_group" "default" {
+  name        = "main_subnet_group"
+  description = "Main group of subnets"
+  subnet_ids  = local.subnet_ids
+}
+
 resource "aws_rds_cluster" "mastodon_db" {
   cluster_identifier              = "mastodon-db"
   engine                          = "aurora-postgresql"

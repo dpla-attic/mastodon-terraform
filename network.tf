@@ -110,14 +110,3 @@ locals {
     aws_subnet.subnet_c.id
   ]
 }
-
-resource "aws_db_subnet_group" "default" {
-  name        = "main_subnet_group"
-  description = "Main group of subnets"
-  subnet_ids = local.subnet_ids
-}
-
-resource "aws_elasticache_subnet_group" "default" {
-  name = "main-subnet-group"
-  subnet_ids = local.subnet_ids
-}

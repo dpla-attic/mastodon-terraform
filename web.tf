@@ -112,7 +112,7 @@ resource "aws_ecs_service" "fargate_service" {
   health_check_grace_period_seconds  = 60
 
   network_configuration {
-    subnets = local.subnet_ids
+    subnets          = local.subnet_ids
     assign_public_ip = true
     security_groups = [
       aws_security_group.mastodon_web_sg.id

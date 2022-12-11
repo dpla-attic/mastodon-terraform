@@ -1,3 +1,8 @@
+resource "aws_elasticache_subnet_group" "default" {
+  name       = "main-subnet-group"
+  subnet_ids = local.subnet_ids
+}
+
 resource "aws_elasticache_replication_group" "mastodon-redis-cluster" {
   engine                     = "redis"
   engine_version             = "7.0"
