@@ -1,4 +1,8 @@
 resource "aws_ecs_cluster" "fargate_cluster" {
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
   name = "mastodon-cluster"
 }
 

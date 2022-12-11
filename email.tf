@@ -33,7 +33,7 @@ resource "aws_route53_record" "spf_mail_from" {
   name    = aws_ses_domain_mail_from.mail_from.mail_from_domain
   type    = "TXT"
   ttl     = "600"
-  records = ["v=spf1 include:amazonses.com ~all"]
+  records = ["v=spf1 include:amazonses.com -all"]
 }
 
 resource "aws_route53_record" "mx_mail_from" {
@@ -77,11 +77,13 @@ resource "aws_iam_user" "ses_smtp_user" {
   path = "/"
 }
 
+data "aws_caller_identity" "current" {}
+
 data "aws_iam_policy_document" "ses_smtp_policy" {
   statement {
     effect    = "Allow"
     actions   = ["ses:SendRawEmail"]
-    resources = ["*"]
+    resources = ["arn:aws:ses:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:identity/${var.local_domain}"]
   }
 }
 

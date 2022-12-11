@@ -1,37 +1,39 @@
 resource "aws_security_group" "alb_sg" {
-  vpc_id = aws_default_vpc.vpc.id
+  description = "Mastodon load balancer"
+  vpc_id      = aws_vpc.main.id
 
   lifecycle {
     create_before_destroy = true
   }
 }
 
-resource "aws_security_group_rule" "alb_sg_rule_ingress_http" {
-  type              = "ingress"
-  from_port         = 80
-  to_port           = 80
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.alb_sg.id
-  description       = "Allow all inbound traffic on port 80"
-}
+# resource "aws_security_group_rule" "alb_sg_rule_ingress_http" {
+#   type              = "ingress"
+#   from_port         = 80
+#   to_port           = 80
+#   protocol          = "tcp"
+#   cidr_blocks       = ["0.0.0.0/0"]
+#   security_group_id = aws_security_group.alb_sg.id
+#   description       = "Allow all inbound traffic on port 80"
+# }
 
-resource "aws_security_group_rule" "alb_sg_rule_ingress_https" {
-  type              = "ingress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.alb_sg.id
-  description       = "Allow all inbound traffic on port 443"
-}
+# resource "aws_security_group_rule" "alb_sg_rule_ingress_https" {
+#   type              = "ingress"
+#   from_port         = 443
+#   to_port           = 443
+#   protocol          = "tcp"
+#   cidr_blocks       = ["0.0.0.0/0"]
+#   security_group_id = aws_security_group.alb_sg.id
+#   description       = "Allow all inbound traffic on port 443"
+# }
 
 resource "aws_lb" "alb" {
-  name               = "mastodon-lb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = [aws_default_subnet.subnet_a.id, aws_default_subnet.subnet_b.id]
+  name                       = "mastodon-lb"
+  internal                   = true
+  load_balancer_type         = "application"
+  security_groups            = [aws_security_group.alb_sg.id]
+  subnets                    = [aws_subnet.subnet_a.id, aws_subnet.subnet_b.id]
+  drop_invalid_header_fields = true
 
   enable_deletion_protection = true
 }
@@ -61,7 +63,7 @@ resource "aws_lb_listener" "https" {
   port              = 443
   protocol          = "HTTPS"
   certificate_arn   = aws_acm_certificate.mastodon_cert.arn
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
 
   default_action {
     type = "fixed-response"

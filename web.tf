@@ -1,10 +1,11 @@
 resource "aws_security_group" "mastodon_web_sg" {
   name        = "mastodon-web-sg"
   description = "Mastodon Webapp"
-  vpc_id      = aws_default_vpc.vpc.id
+  vpc_id      = aws_vpc.main.id
 }
 
 resource "aws_security_group_rule" "web_inbound_redis" {
+  description              = "inbound from web app"
   type                     = "ingress"
   from_port                = 6379
   to_port                  = 6379
@@ -14,6 +15,7 @@ resource "aws_security_group_rule" "web_inbound_redis" {
 }
 
 resource "aws_security_group_rule" "web_inbound_postgres" {
+  description              = "inbound from web app"
   type                     = "ingress"
   from_port                = 5432
   to_port                  = 5432
@@ -32,20 +34,20 @@ resource "aws_security_group_rule" "alb_outbound_web" {
   description              = "Allow inbound traffic from the ALB"
 }
 
-resource "aws_security_group_rule" "web_outbound_ecr" {
-  type              = "egress"
-  cidr_blocks       = ["0.0.0.0/0"]
-  protocol          = "-1"
-  to_port           = 0
-  from_port         = 0
-  security_group_id = aws_security_group.mastodon_web_sg.id
-}
+# resource "aws_security_group_rule" "web_outbound_ecr" {
+#   type              = "egress"
+#   cidr_blocks       = ["0.0.0.0/0"]
+#   protocol          = "-1"
+#   to_port           = 0
+#   from_port         = 0
+#   security_group_id = aws_security_group.mastodon_web_sg.id
+# }
 
 resource "aws_lb_target_group" "web_tg" {
   name        = "web-target-group"
   port        = 3000
   protocol    = "HTTP"
-  vpc_id      = aws_default_vpc.vpc.id
+  vpc_id      = aws_vpc.main.id
   target_type = "ip"
 
   health_check {
@@ -110,11 +112,7 @@ resource "aws_ecs_service" "fargate_service" {
   health_check_grace_period_seconds  = 60
 
   network_configuration {
-    subnets = [
-      aws_default_subnet.subnet_a.id,
-      aws_default_subnet.subnet_b.id,
-      aws_default_subnet.subnet_c.id
-    ]
+    subnets = local.subnet_ids
     assign_public_ip = true
     security_groups = [
       aws_security_group.mastodon_web_sg.id

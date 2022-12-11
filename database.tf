@@ -14,6 +14,8 @@ resource "aws_rds_cluster" "mastodon_db" {
   db_subnet_group_name            = aws_db_subnet_group.default.id
   enabled_cloudwatch_logs_exports = ["postgresql"]
   vpc_security_group_ids          = [aws_security_group.mastodon_db_sg.id]
+  storage_encrypted               = true
+  kms_key_id                      = aws_kms_key.rds_key.arn
 
   serverlessv2_scaling_configuration {
     max_capacity = 128.0
@@ -21,17 +23,25 @@ resource "aws_rds_cluster" "mastodon_db" {
   }
 }
 
+resource "aws_kms_key" "rds_key" {
+  description             = "RDS key"
+  enable_key_rotation     = true
+  deletion_window_in_days = 7
+}
+
 resource "aws_rds_cluster_instance" "cluster_instances" {
-  count              = 1
-  identifier         = "mastodon-db-${count.index}"
-  instance_class     = "db.serverless"
-  cluster_identifier = aws_rds_cluster.mastodon_db.id
-  engine             = aws_rds_cluster.mastodon_db.engine
-  engine_version     = aws_rds_cluster.mastodon_db.engine_version
+  count                           = 1
+  identifier                      = "mastodon-db-${count.index}"
+  instance_class                  = "db.serverless"
+  cluster_identifier              = aws_rds_cluster.mastodon_db.id
+  engine                          = aws_rds_cluster.mastodon_db.engine
+  engine_version                  = aws_rds_cluster.mastodon_db.engine_version
+  performance_insights_enabled    = true
+  performance_insights_kms_key_id = aws_kms_key.rds_key.arn
 }
 
 resource "aws_security_group" "mastodon_db_sg" {
   name        = "mastodon-db-sg"
   description = "Mastodon Database"
-  vpc_id      = aws_default_vpc.vpc.id
+  vpc_id      = aws_vpc.main.id
 }
