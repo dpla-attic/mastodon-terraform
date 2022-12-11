@@ -72,6 +72,7 @@ resource "aws_ses_event_destination" "cloudwatch" {
 
 ### SMTP
 
+#tfsec:ignore:aws-iam-no-user-attached-policies
 resource "aws_iam_user" "ses_smtp_user" {
   name = "ses-smtp-user-mastodon"
   path = "/"
